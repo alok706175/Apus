@@ -15,6 +15,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -62,13 +63,18 @@ fun AnimatedSplashScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
-            .alpha(animAlpha.value),
+            .graphicsLayer {
+                alpha = animAlpha.value
+            },
         contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
-            modifier = Modifier.scale(animScale.value)
+            modifier = Modifier.graphicsLayer {
+                scaleX = animScale.value
+                scaleY = animScale.value
+            }
         ) {
             // App Icon
             Box(

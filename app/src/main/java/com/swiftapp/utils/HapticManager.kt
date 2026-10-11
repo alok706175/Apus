@@ -134,6 +134,7 @@ object HapticManager {
     /**
      * Core non-blocking zero-latency haptic dispatcher.
      * Triggers instantaneous tactile feedback directly on the active view/haptic engine.
+     * Hardware vibrator operations are offloaded to background coroutine to ensure 0ms UI blocking.
      */
     fun performHaptic(
         view: View? = null,
@@ -152,30 +153,10 @@ object HapticManager {
         }
         lastTriggerTimestamp.set(now)
 
-        // 3. For instant taps (LIGHT, MEDIUM, HEAVY), execute immediately on calling thread
-        if (strength == HapticFeedbackStrength.LIGHT || strength == HapticFeedbackStrength.MEDIUM || strength == HapticFeedbackStrength.HEAVY) {
-            dispatchInstantTap(view, haptic, strength)
-        } else {
-            // Asynchronous execution for multi-burst waveforms (SUCCESS, ERROR)
-            hapticScope.launch {
-                dispatchVibration(view, haptic, strength)
-            }
-        }
-    }
-
-    private fun dispatchInstantTap(
-        view: View?,
-        haptic: HapticFeedback?,
-        strength: HapticFeedbackStrength
-    ) {
+        // 3. Fast non-blocking UI framework haptic call
+        var handled = false
         try {
-            // View / Compose Haptic direct invocation (0ms latency)
             if (view != null) {
-                val flag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
-                } else {
-                    0
-                }
                 @Suppress("DEPRECATION")
                 val constant = when (strength) {
                     HapticFeedbackStrength.LIGHT -> HapticFeedbackConstants.KEYBOARD_TAP
@@ -183,19 +164,26 @@ object HapticManager {
                     HapticFeedbackStrength.HEAVY -> HapticFeedbackConstants.LONG_PRESS
                     else -> HapticFeedbackConstants.KEYBOARD_TAP
                 }
-                val handled = view.performHapticFeedback(constant, flag)
-                if (handled) return
-            }
-
-            if (haptic != null) {
+                handled = view.performHapticFeedback(constant)
+            } else if (haptic != null) {
                 when (strength) {
                     HapticFeedbackStrength.HEAVY -> haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     else -> haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 }
-                return
+                handled = true
             }
+        } catch (_: Exception) {}
 
-            // Direct hardware vibrator one-shot
+        // 4. If view haptics not available or for multi-burst patterns, trigger hardware vibration off main thread
+        if (!handled || strength == HapticFeedbackStrength.SUCCESS || strength == HapticFeedbackStrength.ERROR) {
+            hapticScope.launch {
+                dispatchHardwareVibrate(strength)
+            }
+        }
+    }
+
+    private fun dispatchHardwareVibrate(strength: HapticFeedbackStrength) {
+        try {
             val vib = vibrator
             if (vib != null && vib.hasVibrator()) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -203,94 +191,38 @@ object HapticManager {
                         HapticFeedbackStrength.LIGHT -> VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK)
                         HapticFeedbackStrength.MEDIUM -> VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK)
                         HapticFeedbackStrength.HEAVY -> VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK)
-                        else -> VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK)
+                        HapticFeedbackStrength.SUCCESS -> VibrationEffect.createWaveform(
+                            longArrayOf(0, 8, 60, 16),
+                            intArrayOf(0, 140, 0, 220),
+                            -1
+                        )
+                        HapticFeedbackStrength.ERROR -> VibrationEffect.createWaveform(
+                            longArrayOf(0, 35, 40, 35, 40, 45),
+                            intArrayOf(0, 200, 0, 220, 0, 255),
+                            -1
+                        )
                     }
                     vib.vibrate(effect)
                 } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    val (duration, amplitude) = when (strength) {
-                        HapticFeedbackStrength.LIGHT -> 6L to 70
-                        HapticFeedbackStrength.MEDIUM -> 12L to 150
-                        HapticFeedbackStrength.HEAVY -> 25L to 255
-                        else -> 10L to 120
-                    }
-                    vib.vibrate(VibrationEffect.createOneShot(duration, amplitude))
-                } else {
-                    @Suppress("DEPRECATION")
-                    vib.vibrate(10L)
-                }
-            }
-        } catch (_: Exception) {}
-    }
-
-    private fun dispatchVibration(
-        view: View?,
-        haptic: HapticFeedback?,
-        strength: HapticFeedbackStrength
-    ) {
-        var hardwareSuccess = false
-
-        try {
-            val vib = vibrator
-            if (vib != null && vib.hasVibrator()) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val effect = when (strength) {
-                        HapticFeedbackStrength.LIGHT ->
-                            VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK)
-
-                        HapticFeedbackStrength.MEDIUM ->
-                            VibrationEffect.createPredefined(VibrationEffect.EFFECT_CLICK)
-
-                        HapticFeedbackStrength.HEAVY ->
-                            VibrationEffect.createPredefined(VibrationEffect.EFFECT_HEAVY_CLICK)
-
-                        HapticFeedbackStrength.SUCCESS ->
-                            // Double micro-tap: Light tap (8ms) -> 60ms pause -> Firm tap (16ms)
+                    when (strength) {
+                        HapticFeedbackStrength.LIGHT -> vib.vibrate(VibrationEffect.createOneShot(6L, 70))
+                        HapticFeedbackStrength.MEDIUM -> vib.vibrate(VibrationEffect.createOneShot(12L, 150))
+                        HapticFeedbackStrength.HEAVY -> vib.vibrate(VibrationEffect.createOneShot(25L, 255))
+                        HapticFeedbackStrength.SUCCESS -> vib.vibrate(
                             VibrationEffect.createWaveform(
-                                longArrayOf(0, 8, 60, 16),
+                                longArrayOf(0, 10, 60, 18),
                                 intArrayOf(0, 140, 0, 220),
                                 -1
                             )
-
-                        HapticFeedbackStrength.ERROR ->
-                            // Triple buzz: 40ms -> 40ms pause -> 40ms -> 40ms pause -> 40ms
+                        )
+                        HapticFeedbackStrength.ERROR -> vib.vibrate(
                             VibrationEffect.createWaveform(
                                 longArrayOf(0, 35, 40, 35, 40, 45),
-                                intArrayOf(0, 200, 0, 220, 0, 255),
+                                intArrayOf(0, 180, 0, 200, 0, 240),
                                 -1
                             )
+                        )
                     }
-                    vib.vibrate(effect)
-                    hardwareSuccess = true
-                } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    when (strength) {
-                        HapticFeedbackStrength.LIGHT ->
-                            vib.vibrate(VibrationEffect.createOneShot(7L, 75))
-
-                        HapticFeedbackStrength.MEDIUM ->
-                            vib.vibrate(VibrationEffect.createOneShot(14L, 160))
-
-                        HapticFeedbackStrength.HEAVY ->
-                            vib.vibrate(VibrationEffect.createOneShot(28L, 255))
-
-                        HapticFeedbackStrength.SUCCESS ->
-                            vib.vibrate(
-                                VibrationEffect.createWaveform(
-                                    longArrayOf(0, 10, 60, 18),
-                                    intArrayOf(0, 140, 0, 220),
-                                    -1
-                                )
-                            )
-
-                        HapticFeedbackStrength.ERROR ->
-                            vib.vibrate(
-                                VibrationEffect.createWaveform(
-                                    longArrayOf(0, 35, 40, 35, 40, 45),
-                                    intArrayOf(0, 180, 0, 200, 0, 240),
-                                    -1
-                                )
-                            )
-                    }
-                    hardwareSuccess = true
                 } else {
                     @Suppress("DEPRECATION")
                     when (strength) {
@@ -300,40 +232,8 @@ object HapticManager {
                         HapticFeedbackStrength.SUCCESS -> vib.vibrate(longArrayOf(0, 10, 60, 18), -1)
                         HapticFeedbackStrength.ERROR -> vib.vibrate(longArrayOf(0, 35, 40, 35, 40, 45), -1)
                     }
-                    hardwareSuccess = true
                 }
             }
         } catch (_: Exception) {}
-
-        // Fallback to View Haptic if hardware vibrator failed or not accessible
-        if (!hardwareSuccess) {
-            try {
-                if (view != null) {
-                    val flag = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                        HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
-                    } else {
-                        0
-                    }
-                    @Suppress("DEPRECATION")
-                    val constant = when (strength) {
-                        HapticFeedbackStrength.LIGHT -> HapticFeedbackConstants.KEYBOARD_TAP
-                        HapticFeedbackStrength.MEDIUM -> HapticFeedbackConstants.VIRTUAL_KEY
-                        HapticFeedbackStrength.HEAVY -> HapticFeedbackConstants.LONG_PRESS
-                        HapticFeedbackStrength.SUCCESS ->
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) HapticFeedbackConstants.CONFIRM else HapticFeedbackConstants.KEYBOARD_TAP
-                        HapticFeedbackStrength.ERROR ->
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) HapticFeedbackConstants.REJECT else HapticFeedbackConstants.LONG_PRESS
-                    }
-                    view.performHapticFeedback(constant, flag)
-                } else if (haptic != null) {
-                    when (strength) {
-                        HapticFeedbackStrength.HEAVY, HapticFeedbackStrength.ERROR ->
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        else ->
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                    }
-                }
-            } catch (_: Exception) {}
-        }
     }
 }

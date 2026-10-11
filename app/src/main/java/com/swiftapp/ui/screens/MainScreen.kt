@@ -829,8 +829,8 @@ fun MainScreen(
                 AnimatedContent(
                     targetState = selectedTab,
                     transitionSpec = {
-                        fadeIn(animationSpec = androidx.compose.animation.core.tween(220, easing = androidx.compose.animation.core.FastOutSlowInEasing)) togetherWith
-                            fadeOut(animationSpec = androidx.compose.animation.core.tween(180, easing = androidx.compose.animation.core.FastOutLinearInEasing))
+                        fadeIn(animationSpec = androidx.compose.animation.core.tween(100)) togetherWith
+                            fadeOut(animationSpec = androidx.compose.animation.core.tween(80))
                     },
                     label = "TabTransition"
                 ) { tab ->
@@ -1305,11 +1305,10 @@ fun HomeDashboardContent(
                         // Left Subsection: Recent
                         val isRecentSelected = homeSubSection == HomeSubSection.RECENT
                         Surface(
-                            onClick = { onSubSectionSelected(HomeSubSection.RECENT) },
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight()
-                                .bounceClick(scaleDownFactor = 0.97f),
+                                .bounceClick(scaleDownFactor = 0.97f) { onSubSectionSelected(HomeSubSection.RECENT) },
                             shape = RoundedCornerShape(10.dp),
                             color = if (isRecentSelected) MaterialTheme.colorScheme.surface else Color.Transparent,
                             shadowElevation = if (isRecentSelected) 2.dp else 0.dp
@@ -1338,11 +1337,10 @@ fun HomeDashboardContent(
                         // Right Subsection: All Files
                         val isAllFilesSelected = homeSubSection == HomeSubSection.ALL_FILES
                         Surface(
-                            onClick = { onSubSectionSelected(HomeSubSection.ALL_FILES) },
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight()
-                                .bounceClick(scaleDownFactor = 0.97f),
+                                .bounceClick(scaleDownFactor = 0.97f) { onSubSectionSelected(HomeSubSection.ALL_FILES) },
                             shape = RoundedCornerShape(10.dp),
                             color = if (isAllFilesSelected) MaterialTheme.colorScheme.surface else Color.Transparent,
                             shadowElevation = if (isAllFilesSelected) 2.dp else 0.dp

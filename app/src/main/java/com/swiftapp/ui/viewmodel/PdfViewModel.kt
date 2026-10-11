@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import com.swiftapp.utils.StoragePermissionManager
 import com.swiftapp.utils.StoragePermissionState
@@ -135,21 +136,31 @@ class PdfViewModel(
     }
 
     private fun loadRecentFiles(context: Context) {
-        val prefs = context.getSharedPreferences("recent_files", Context.MODE_PRIVATE)
-        val paths = prefs.getStringSet("paths", emptySet()) ?: emptySet()
-        val files = paths.asSequence().mapNotNull { path ->
-            val file = File(path)
-            if (file.exists()) PdfHelper.getPdfFileItem(file) else null
-        }.sortedByDescending { it.dateModified }.toList()
-        _recentlyOpened.value = files
+        val appContext = context.applicationContext
+        viewModelScope.launch(Dispatchers.IO) {
+            val prefs = appContext.getSharedPreferences("recent_files", Context.MODE_PRIVATE)
+            val paths = prefs.getStringSet("paths", emptySet()) ?: emptySet()
+            val files = paths.asSequence().mapNotNull { path ->
+                val file = File(path)
+                if (file.exists()) PdfHelper.getPdfFileItem(file) else null
+            }.sortedByDescending { it.dateModified }.toList()
+            _recentlyOpened.value = files
+        }
     }
 
     fun addToRecent(context: Context, file: File) {
-        val prefs = context.getSharedPreferences("recent_files", Context.MODE_PRIVATE)
-        val currentPaths = prefs.getStringSet("paths", emptySet())?.toMutableSet() ?: mutableSetOf()
-        currentPaths.add(file.absolutePath)
-        prefs.edit { putStringSet("paths", currentPaths) }
-        loadRecentFiles(context)
+        val appContext = context.applicationContext
+        viewModelScope.launch(Dispatchers.IO) {
+            val prefs = appContext.getSharedPreferences("recent_files", Context.MODE_PRIVATE)
+            val currentPaths = prefs.getStringSet("paths", emptySet())?.toMutableSet() ?: mutableSetOf()
+            currentPaths.add(file.absolutePath)
+            prefs.edit { putStringSet("paths", currentPaths) }
+            val files = currentPaths.asSequence().mapNotNull { path ->
+                val f = File(path)
+                if (f.exists()) PdfHelper.getPdfFileItem(f) else null
+            }.sortedByDescending { it.dateModified }.toList()
+            _recentlyOpened.value = files
+        }
     }
 
     fun setSearchQuery(query: String) {

@@ -96,7 +96,7 @@ fun Modifier.staggeredEntrance(
         isVisible = true
     }
 
-    val alpha by animateFloatAsState(
+    val alpha = animateFloatAsState(
         targetValue = if (isVisible) 1.0f else 0.0f,
         animationSpec = tween(
             durationMillis = MotionTokens.SnappyDurationMs,
@@ -106,7 +106,7 @@ fun Modifier.staggeredEntrance(
         label = "StaggeredAlpha"
     )
 
-    val translateY by animateFloatAsState(
+    val translateY = animateFloatAsState(
         targetValue = if (isVisible) 0.0f else initialOffsetY,
         animationSpec = tween(
             durationMillis = MotionTokens.SnappyDurationMs,
@@ -117,8 +117,8 @@ fun Modifier.staggeredEntrance(
     )
 
     this.graphicsLayer {
-        this.alpha = alpha
-        this.translationY = translateY
+        this.alpha = alpha.value
+        this.translationY = translateY.value
     }
 }
 
