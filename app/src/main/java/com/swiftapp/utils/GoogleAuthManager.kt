@@ -1,6 +1,5 @@
 package com.swiftapp.utils
 
-import android.app.Activity
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -54,13 +53,13 @@ object GoogleAuthManager {
     }
 
     suspend fun signInWithGoogle(
-        activity: Activity,
+        context: Context,
         serverClientId: String = DEFAULT_SERVER_CLIENT_ID
     ): GoogleAuthResult {
-        val context = activity.applicationContext
+        val appContext = context.applicationContext
 
         // Network connectivity check
-        if (!isNetworkAvailable(context)) {
+        if (!isNetworkAvailable(appContext)) {
             Log.w(TAG, "Sign in failed: No internet connection")
             return GoogleAuthResult.Error(
                 message = "Network error. Please check your internet connection and try again.",
@@ -68,7 +67,7 @@ object GoogleAuthManager {
             )
         }
 
-        val credentialManager = CredentialManager.create(activity)
+        val credentialManager = CredentialManager.create(context)
 
         try {
             val rawNonce = UUID.randomUUID().toString()
@@ -90,7 +89,7 @@ object GoogleAuthManager {
 
             val response = credentialManager.getCredential(
                 request = request,
-                context = activity
+                context = context
             )
 
             val credential = response.credential

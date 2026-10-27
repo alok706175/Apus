@@ -1,6 +1,5 @@
 package com.swiftapp.ui.viewmodel
 
-import android.app.Activity
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -46,22 +45,34 @@ class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
     private val _showFallbackAccountPicker = MutableStateFlow(false)
     val showFallbackAccountPicker: StateFlow<Boolean> = _showFallbackAccountPicker.asStateFlow()
 
-    val sampleGoogleAccounts = listOf(
-        GoogleAccountOption(
-            uid = "google_alok_kumar_id",
-            email = "alok706175@gmail.com",
-            displayName = "Alok Kumar",
-            photoUrl = "https://lh3.googleusercontent.com/a/default-user=s96-c"
-        ),
-        GoogleAccountOption(
-            uid = "google_alex_swift_id",
-            email = "alex.swift@gmail.com",
-            displayName = "Alex Swift",
-            photoUrl = "https://lh3.googleusercontent.com/a/default-user=s96-c"
-        )
-    )
+    private val _deviceAccounts = MutableStateFlow<List<GoogleAccountOption>>(emptyList())
+    val deviceAccounts: StateFlow<List<GoogleAccountOption>> = _deviceAccounts.asStateFlow()
 
-    fun continueWithGoogle(activity: Activity) {
+    fun loadDeviceAccounts(context: Context) {
+        _deviceAccounts.value = getDeviceGoogleAccounts(context)
+        _showFallbackAccountPicker.value = true
+    }
+
+    private fun getDeviceGoogleAccounts(context: Context): List<GoogleAccountOption> {
+        return try {
+            val accountManager = android.accounts.AccountManager.get(context)
+            val accounts = accountManager.getAccountsByType("com.google")
+            accounts.map { account ->
+                val email = account.name
+                val name = email.substringBefore("@").replaceFirstChar { it.uppercase() }
+                GoogleAccountOption(
+                    uid = "google_${email.hashCode()}",
+                    email = email,
+                    displayName = name,
+                    photoUrl = "https://lh3.googleusercontent.com/a/default-user=s96-c"
+                )
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun continueWithGoogle(context: Context) {
         if (_isProcessing.value) return
         _isGoogleProcessing.value = true
         _isProcessing.value = true
@@ -70,7 +81,7 @@ class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
 
         viewModelScope.launch {
             try {
-                when (val result = GoogleAuthManager.signInWithGoogle(activity)) {
+                when (val result = GoogleAuthManager.signInWithGoogle(context)) {
                     is GoogleAuthResult.Success -> {
                         val authResult = repository.authenticateWithGoogle(
                             uid = result.uid,
@@ -105,13 +116,13 @@ class AuthViewModel(private val repository: AuthRepository) : ViewModel() {
                     is GoogleAuthResult.RequiresFallbackPicker -> {
                         _isGoogleProcessing.value = false
                         _isProcessing.value = false
-                        _showFallbackAccountPicker.value = true
+                        loadDeviceAccounts(context)
                     }
                 }
             } catch (e: Exception) {
                 _isGoogleProcessing.value = false
                 _isProcessing.value = false
-                _showFallbackAccountPicker.value = true
+                loadDeviceAccounts(context)
             }
         }
     }

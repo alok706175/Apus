@@ -66,14 +66,16 @@ fun CompressPdfScreen(
     val context = LocalContext.current
     val items by compressViewModel.items.collectAsState()
     val selectedPreset by compressViewModel.selectedPreset.collectAsState()
-    val targetSizeKb by compressViewModel.targetSizeKb.collectAsState()
+    val targetSizeValue by compressViewModel.targetSizeValue.collectAsState()
+    val targetSizeUnit by compressViewModel.targetSizeUnit.collectAsState()
     val uiState by compressViewModel.uiState.collectAsState()
 
     val filePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenMultipleDocuments()
-    ) { uris: List<Uri> ->
-        if (uris.isNotEmpty()) {
-            compressViewModel.addUris(context, uris)
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            compressViewModel.clearAll()
+            compressViewModel.addUris(context, listOf(uri))
         }
     }
 
@@ -96,10 +98,10 @@ fun CompressPdfScreen(
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                         )
                         if (items.isNotEmpty()) {
-                            val totalPages = items.sumOf { it.pageCount }
-                            val totalBytes = items.sumOf { it.fileSizeBytes }
+                            val totalPages = items.first().pageCount
+                            val totalBytes = items.first().fileSizeBytes
                             Text(
-                                text = "${items.size} document${if (items.size > 1) "s" else ""} • $totalPages pages • ${formatCompressFileSize(totalBytes)}",
+                                text = "1 document • $totalPages pages • ${formatCompressFileSize(totalBytes)}",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
@@ -116,37 +118,7 @@ fun CompressPdfScreen(
                         )
                     }
                 },
-                actions = {
-                    if (items.isNotEmpty()) {
-                        TactileIconButton(onClick = { showClearConfirmDialog = true }) {
-                            Icon(
-                                imageVector = Icons.Outlined.DeleteSweep,
-                                contentDescription = "Clear All",
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(4.dp))
-                        TactileButton(
-                            onClick = { compressViewModel.startCompression(context) },
-                            enabled = items.count { it.isValid } >= 1,
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                            shape = RoundedCornerShape(20.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Compress,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "Compress",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp
-                            )
-                        }
-                    }
-                },
+                actions = {},
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
             )
         },
@@ -176,25 +148,18 @@ fun CompressPdfScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    // Header & Add More Files
+                    // Header & Change File
                     item {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Column {
-                                Text(
-                                    text = "Selected Files (${items.size})",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                                Text(
-                                    text = "Files to be compressed",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
+                            Text(
+                                text = "Selected File",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                            )
 
                             FilledTonalButton(
                                 onClick = { filePickerLauncher.launch(arrayOf("application/pdf")) },
@@ -202,12 +167,12 @@ fun CompressPdfScreen(
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Add,
+                                    imageVector = Icons.Default.Edit,
                                     contentDescription = null,
                                     modifier = Modifier.size(18.dp),
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
-                                Text("Add More", style = MaterialTheme.typography.labelMedium)
+                                Text("Change File", style = MaterialTheme.typography.labelMedium)
                             }
                         }
                     }
@@ -225,9 +190,11 @@ fun CompressPdfScreen(
                     item {
                         CompressionPresetSection(
                             selectedPreset = selectedPreset,
-                            targetSizeKb = targetSizeKb,
+                            targetSizeValue = targetSizeValue,
+                            targetSizeUnit = targetSizeUnit,
                             onPresetSelect = { compressViewModel.selectPreset(it) },
-                            onTargetSizeChange = { compressViewModel.setTargetSizeKb(it) },
+                            onTargetSizeValueChange = { compressViewModel.setTargetSizeValue(it) },
+                            onTargetSizeUnitChange = { compressViewModel.setTargetSizeUnit(it) }
                         )
                     }
 
@@ -553,12 +520,15 @@ fun CompressFileCard(
 /**
  * Compression Presets & Target Size Selector
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CompressionPresetSection(
     selectedPreset: CompressionPreset,
-    targetSizeKb: String,
+    targetSizeValue: String,
+    targetSizeUnit: String,
     onPresetSelect: (CompressionPreset) -> Unit,
-    onTargetSizeChange: (String) -> Unit,
+    onTargetSizeValueChange: (String) -> Unit,
+    onTargetSizeUnitChange: (String) -> Unit,
 ) {
     Card(
         shape = RoundedCornerShape(20.dp),
@@ -579,7 +549,7 @@ fun CompressionPresetSection(
                     tint = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    text = "Compression Options",
+                    text = "Compression Quality Options",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                 )
@@ -597,6 +567,8 @@ fun CompressionPresetSection(
 
             // Custom Target Size Input
             if (selectedPreset == CompressionPreset.CUSTOM_TARGET) {
+                var expanded by remember { mutableStateOf(false) }
+
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -604,34 +576,68 @@ fun CompressionPresetSection(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(
-                        text = "Target Maximum Size (KB)",
+                        text = "Target Maximum Size",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
 
                     OutlinedTextField(
-                        value = targetSizeKb,
-                        onValueChange = onTargetSizeChange,
-                        label = { Text("Target Size (e.g. 200 KB)") },
+                        value = targetSizeValue,
+                        onValueChange = onTargetSizeValueChange,
+                        label = { Text("Enter Maximum Target Size") },
                         singleLine = true,
-                        trailingIcon = { Text("KB", modifier = Modifier.padding(end = 12.dp), fontWeight = FontWeight.Bold) },
+                        trailingIcon = {
+                            ExposedDropdownMenuBox(
+                                expanded = expanded,
+                                onExpandedChange = { expanded = !expanded }
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .menuAnchor()
+                                        .clickable { expanded = true }
+                                        .padding(end = 12.dp)
+                                ) {
+                                    Text(
+                                        text = targetSizeUnit,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        softWrap = false
+                                    )
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowDropDown,
+                                        contentDescription = "Select Unit",
+                                        tint = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                                ExposedDropdownMenu(
+                                    expanded = expanded,
+                                    onDismissRequest = { expanded = false },
+                                    modifier = Modifier.width(IntrinsicSize.Min)
+                                ) {
+                                    listOf("Bytes", "KB", "MB").forEach { unit ->
+                                        DropdownMenuItem(
+                                            text = { 
+                                                Text(
+                                                    text = unit,
+                                                    maxLines = 1,
+                                                    softWrap = false
+                                                ) 
+                                            },
+                                            contentPadding = PaddingValues(horizontal = 16.dp),
+                                            onClick = {
+                                                onTargetSizeUnitChange(unit)
+                                                expanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                     )
-
-                    // Quick Chips
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        listOf("100", "200", "500", "1000").forEach { quickSize ->
-                            AssistChip(
-                                onClick = { onTargetSizeChange(quickSize) },
-                                label = { Text(if (quickSize == "1000") "1 MB" else "$quickSize KB") },
-                                shape = RoundedCornerShape(10.dp),
-                            )
-                        }
-                    }
                 }
             }
         }
@@ -679,17 +685,19 @@ fun PresetCardItem(
                         fontWeight = FontWeight.Bold,
                     )
 
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer,
-                    ) {
-                        Text(
-                            text = preset.estimatedReduction,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        )
+                    if (preset.estimatedReduction.isNotBlank()) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primaryContainer,
+                        ) {
+                            Text(
+                                text = preset.estimatedReduction,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            )
+                        }
                     }
                 }
 
@@ -738,7 +746,7 @@ fun CompressBottomActionBar(
                 Icon(imageVector = Icons.Outlined.Compress, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = if (isReady) "Compress $validCount PDF Document${if (validCount > 1) "s" else ""}" else "Select at least 1 valid PDF",
+                    text = if (isReady) "Compress" else "Select at least 1 valid PDF",
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
                 )

@@ -1,6 +1,5 @@
 package com.swiftapp.ui.screens
 
-import android.app.Activity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
@@ -102,7 +101,6 @@ fun AuthScreen(
     onContinueAsGuest: () -> Unit
 ) {
     val context = LocalContext.current
-    val activity = context as? Activity
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
     val snackbarHostState = remember { SnackbarHostState() }
@@ -128,9 +126,11 @@ fun AuthScreen(
         }
     }
 
+    val deviceAccounts by authViewModel.deviceAccounts.collectAsState()
+
     if (showFallbackAccountPicker) {
         GoogleAccountPickerDialog(
-            accounts = authViewModel.sampleGoogleAccounts,
+            accounts = deviceAccounts,
             onAccountSelected = { account ->
                 authViewModel.onSelectGoogleAccount(account)
             },
@@ -456,9 +456,7 @@ fun AuthScreen(
                     isLoading = isGoogleProcessing,
                     enabled = !isProcessing,
                     onClick = {
-                        if (activity != null) {
-                            authViewModel.continueWithGoogle(activity)
-                        }
+                        authViewModel.continueWithGoogle(context)
                     }
                 )
             }

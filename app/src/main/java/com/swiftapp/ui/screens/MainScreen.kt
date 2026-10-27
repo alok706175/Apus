@@ -2553,8 +2553,9 @@ fun SettingsContent(
     }
 
     if (showFallbackPicker) {
+        val deviceAccounts by authViewModel.deviceAccounts.collectAsState()
         GoogleAccountPickerDialog(
-            accounts = authViewModel.sampleGoogleAccounts,
+            accounts = deviceAccounts,
             onAccountSelected = { account ->
                 authViewModel.onSelectGoogleAccount(account)
             },
@@ -2621,9 +2622,7 @@ fun SettingsContent(
                     authViewModel.signOut()
                 },
                 onSignInWithGoogleClick = {
-                    if (activity != null) {
-                        authViewModel.continueWithGoogle(activity)
-                    }
+                    authViewModel.continueWithGoogle(context)
                 },
                 onSignOutClick = {
                     authViewModel.signOut()

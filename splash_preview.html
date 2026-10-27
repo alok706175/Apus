@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Swift Splash Screen - 15 Frames Animation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0B0F19;
+      --card-bg: rgba(22, 28, 45, 0.75);
+      --border: rgba(255, 255, 255, 0.1);
+      --accent: #FD8046;
+      --accent-glow: rgba(253, 128, 70, 0.35);
+      --text-main: #F8FAFC;
+      --text-dim: #94A3B8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: radial-gradient(circle at 50% 0%, #1e1e38 0%, #0B0F19 65%);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px 40px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(253, 128, 70, 0.15);
+      color: #FD8046;
+      border: 1px solid rgba(253, 128, 70, 0.3);
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #FFFFFF 0%, #CBD5E1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
+
+    p.subtitle {
+      color: var(--text-dim);
+      font-size: 14px;
+    }
+
+    /* Main Container */
+    .preview-container {
+      display: flex;
+      gap: 36px;
+      align-items: flex-start;
+      justify-content: center;
+      flex-wrap: wrap;
+      width: 100%;
+      max-width: 900px;
+    }
+
+    .device-column {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .device-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .device-title .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #FD8046;
+      box-shadow: 0 0 8px #FD8046;
+    }
+
+    .phone-frame {
+      width: 320px;
+      height: 640px;
+      background: #000;
+      border-radius: 46px;
+      padding: 11px;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7),
+                  0 0 0 1px rgba(255, 255, 255, 0.15),
+                  0 0 30px var(--accent-glow);
+      position: relative;
+    }
+
+    .phone-screen {
+      width: 100%;
+      height: 100%;
+      background: #FFFFFF;
+      border-radius: 36px;
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .phone-notch {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80px;
+      height: 20px;
+      background: #000;
+      border-radius: 20px;
+      z-index: 50;
+    }
+
+    /* Splash Screen Content */
+    .splash-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      background: #FFFFFF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.35s ease-out;
+    }
+
+    .frame-display {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      position: absolute;
+      inset: 0;
+    }
+
+    /* Home Screen Mockup */
+    .home-screen {
+      position: absolute;
+      inset: 0;
+      background: #F8FAFC;
+      display: flex;
+      flex-direction: column;
+      padding: 42px 20px 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s ease;
+      z-index: 5;
+    }
+
+    .home-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .home-header h2 {
+      font-size: 20px;
+      font-weight: 800;
+      color: #0F172A;
+    }
+
+    .home-card {
+      background: #FFFFFF;
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.04);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .home-card-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: rgba(253, 128, 70, 0.12);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #FD8046;
+      font-weight: 700;
+      font-size: 18px;
+    }
+
+    .home-card-text {
+      flex: 1;
+    }
+
+    .home-card-text .title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1E293B;
+    }
+
+    .home-card-text .sub {
+      font-size: 12px;
+      color: #64748B;
+    }
+
+    /* Controls Panel */
+    .controls-card {
+      width: 100%;
+      max-width: 650px;
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 20px 24px;
+      margin-top: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    .timeline-row {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .timeline-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .time-badge {
+      font-family: monospace;
+      color: #FD8046;
+      background: rgba(253, 128, 70, 0.1);
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+
+    .frame-badge {
+      background: rgba(255, 255, 255, 0.08);
+      padding: 2px 10px;
+      border-radius: 6px;
+      color: #E2E8F0;
+    }
+
+    .slider-container {
+      position: relative;
+      width: 100%;
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.1);
+      height: 8px;
+      border-radius: 4px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #FD8046;
+      box-shadow: 0 0 10px rgba(253, 128, 70, 0.8);
+      cursor: pointer;
+      border: 2px solid #FFF;
+    }
+
+    .timeline-markers {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: var(--text-dim);
+      padding: 0 4px;
+    }
+
+    .btn-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .btn-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    button {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-main);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 8px 16px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    button:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.25);
+    }
+
+    button.primary {
+      background: linear-gradient(135deg, #FD8046 0%, #FE533B 100%);
+      border: none;
+      color: #FFF;
+      box-shadow: 0 4px 15px rgba(253, 128, 70, 0.4);
+    }
+
+    button.primary:hover {
+      opacity: 0.95;
+      transform: translateY(-1px);
+    }
+
+    button.active {
+      background: rgba(253, 128, 70, 0.2);
+      border-color: #FD8046;
+      color: #FD8046;
+    }
+
+    .phase-indicator {
+      font-size: 12px;
+      color: var(--text-dim);
+      background: rgba(0, 0, 0, 0.3);
+      padding: 6px 12px;
+      border-radius: 8px;
+      border-left: 3px solid #FD8046;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="badge">Pixel-Perfect 15 Frames Animation</div>
+    <h1>Swift Splash Screen</h1>
+    <p class="subtitle">Exact 15 Frames Sequence Directly Playing on Android Screen</p>
+  </header>
+
+  <div class="preview-container">
+    
+    <!-- Phone Mockup -->
+    <div class="device-column">
+      <div class="device-title">
+        <span class="dot"></span> Live Splash Screen (Original 15 Frames)
+      </div>
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          
+          <!-- Splash Screen View -->
+          <div class="splash-container" id="splashView">
+            <img src="preview_assets/frame1.png" class="frame-display" id="frameImg" alt="Splash Frame">
+          </div>
+
+          <!-- Home Screen Mockup Transition -->
+          <div class="home-screen" id="homeView">
+            <div class="home-header">
+              <h2>Swift Documents</h2>
+              <span style="font-size: 22px;">⚙️</span>
+            </div>
+            <div class="home-card">
+              <div class="home-card-icon">📄</div>
+              <div class="home-card-text">
+                <div class="title">Scanned_Document_01.pdf</div>
+                <div class="sub">2.4 MB • Today at 10:45 PM</div>
+              </div>
+            </div>
+            <div class="home-card">
+              <div class="home-card-icon">⚡</div>
+              <div class="home-card-text">
+                <div class="title">Compress PDF</div>
+                <div class="sub">Fast ultra compression ready</div>
+              </div>
+            </div>
+            <div class="home-card">
+              <div class="home-card-icon">🔒</div>
+              <div class="home-card-text">
+                <div class="title">App Lock Active</div>
+                <div class="sub">Biometric / PIN protection</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Interactive Controls Bar -->
+  <div class="controls-card">
+    <div class="timeline-row">
+      <div class="timeline-info">
+        <span class="frame-badge" id="frameLabel">Frame 1 of 15</span>
+        <span class="time-badge" id="timeLabel">0.00s / 3.75s</span>
+      </div>
+      <div class="slider-container">
+        <input type="range" id="timeSlider" min="0" max="3750" value="0" step="250">
+      </div>
+      <div class="timeline-markers">
+        <span>F1 (0.00s)</span>
+        <span>F4 (0.75s)</span>
+        <span>F9 (2.00s)</span>
+        <span>F12 (2.75s)</span>
+        <span>F15 (3.50s)</span>
+        <span>Home (3.75s)</span>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <div class="btn-group">
+        <button class="primary" id="playBtn">▶ Play</button>
+        <button id="replayBtn">🔄 Replay</button>
+        <button id="prevBtn">⏮ Prev Frame</button>
+        <button id="nextBtn">⏭ Next Frame</button>
+      </div>
+
+      <div class="btn-group">
+        <span style="font-size: 12px; color: var(--text-dim);">Speed:</span>
+        <button class="speed-btn" data-speed="0.5">0.5x</button>
+        <button class="speed-btn active" data-speed="1.0">1.0x (Real)</button>
+        <button class="speed-btn" data-speed="1.5">1.5x</button>
+      </div>
+    </div>
+
+    <div class="phase-indicator" id="phaseDesc">
+      Phase: Frame 1 at 0.00s: Blank pure white screen.
+    </div>
+  </div>
+
+  <script>
+    const TOTAL_DURATION = 3750; // ms
+
+    let currentTime = 0;
+    let isPlaying = true;
+    let playbackRate = 1.0;
+    let lastTimestamp = null;
+
+    // Elements
+    const frameImg = document.getElementById('frameImg');
+    const splashView = document.getElementById('splashView');
+    const homeView = document.getElementById('homeView');
+    const timeSlider = document.getElementById('timeSlider');
+    const timeLabel = document.getElementById('timeLabel');
+    const frameLabel = document.getElementById('frameLabel');
+    const phaseDesc = document.getElementById('phaseDesc');
+    const playBtn = document.getElementById('playBtn');
+    const replayBtn = document.getElementById('replayBtn');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const speedBtns = document.querySelectorAll('.speed-btn');
+
+    // Preload all 15 frame images so playback is instant with zero flicker
+    const frameImages = [];
+    for (let i = 1; i <= 15; i++) {
+      const img = new Image();
+      img.src = `preview_assets/frame${i}.png`;
+      frameImages.push(img);
+    }
+
+    const frameData = [
+      { t: 0, frame: 1, desc: 'Frame 1 (0.00s): Blank pure white screen.' },
+      { t: 250, frame: 2, desc: 'Frame 2 (0.25s): Orange bird top wing tip appears.' },
+      { t: 500, frame: 3, desc: 'Frame 3 (0.50s): Upper wing expands.' },
+      { t: 750, frame: 4, desc: 'Frame 4 (0.75s): Wing curves & upper body reveal.' },
+      { t: 1000, frame: 5, desc: 'Frame 5 (1.00s): Wings layer & head tip.' },
+      { t: 1250, frame: 6, desc: 'Frame 6 (1.25s): Wings shape & beak.' },
+      { t: 1500, frame: 7, desc: 'Frame 7 (1.50s): Head, beak & belly swoops.' },
+      { t: 1750, frame: 8, desc: 'Frame 8 (1.75s): Lower tail feathers reveal.' },
+      { t: 2000, frame: 9, desc: 'Frame 9 (2.00s): 100% Fully revealed orange bird.' },
+      { t: 2250, frame: 10, desc: 'Frame 10 (2.25s): Squircle container fades in (~40% opacity).' },
+      { t: 2500, frame: 11, desc: 'Frame 11 (2.50s): Container reaches ~97% opacity, logo white.' },
+      { t: 2750, frame: 12, desc: 'Frame 12 (2.75s): 100% Complete icon with crisp white bird.' },
+      { t: 3000, frame: 13, desc: 'Frame 13 (3.00s): Holding final icon.' },
+      { t: 3250, frame: 14, desc: 'Frame 14 (3.25s): Holding final icon.' },
+      { t: 3500, frame: 15, desc: 'Frame 15 (3.50s): Completed splash state.' },
+    ];
+
+    function getFrameIndex(timeMs) {
+      const idx = Math.floor(timeMs / 250);
+      return Math.max(0, Math.min(14, idx));
+    }
+
+    function renderTime(timeMs) {
+      timeMs = Math.max(0, Math.min(TOTAL_DURATION, timeMs));
+      currentTime = timeMs;
+
+      const frameIdx = getFrameIndex(timeMs);
+      const frameNum = frameIdx + 1;
+
+      // Update image source directly to the exact frame
+      frameImg.src = `preview_assets/frame${frameNum}.png`;
+
+      // Screen navigation transition (at 3.75s)
+      if (timeMs >= 3700) {
+        splashView.style.opacity = '0';
+        homeView.style.opacity = '1';
+      } else {
+        splashView.style.opacity = '1';
+        homeView.style.opacity = '0';
+      }
+
+      // Update UI
+      const curData = frameData[frameIdx];
+      frameLabel.textContent = `Frame ${frameNum} of 15`;
+      timeLabel.textContent = `${(timeMs / 1000).toFixed(2)}s / 3.75s`;
+      phaseDesc.textContent = curData.desc;
+      timeSlider.value = timeMs;
+    }
+
+    function loop(timestamp) {
+      if (!lastTimestamp) lastTimestamp = timestamp;
+      const delta = (timestamp - lastTimestamp) * playbackRate;
+      lastTimestamp = timestamp;
+
+      if (isPlaying) {
+        currentTime += delta;
+        if (currentTime > TOTAL_DURATION) {
+          currentTime = TOTAL_DURATION;
+          isPlaying = false;
+          playBtn.textContent = '▶ Play';
+        }
+        renderTime(currentTime);
+      }
+
+      requestAnimationFrame(loop);
+    }
+
+    // Slider input
+    timeSlider.addEventListener('input', (e) => {
+      isPlaying = false;
+      playBtn.textContent = '▶ Play';
+      renderTime(parseFloat(e.target.value));
+    });
+
+    // Play/Pause
+    playBtn.addEventListener('click', () => {
+      if (currentTime >= TOTAL_DURATION) {
+        currentTime = 0;
+      }
+      isPlaying = !isPlaying;
+      playBtn.textContent = isPlaying ? '⏸ Pause' : '▶ Play';
+      lastTimestamp = null;
+    });
+
+    // Replay
+    replayBtn.addEventListener('click', () => {
+      currentTime = 0;
+      isPlaying = true;
+      playBtn.textContent = '⏸ Pause';
+      lastTimestamp = null;
+      renderTime(0);
+    });
+
+    // Step Prev/Next
+    prevBtn.addEventListener('click', () => {
+      isPlaying = false;
+      playBtn.textContent = '▶ Play';
+      const curIdx = getFrameIndex(currentTime);
+      const prevIdx = Math.max(0, curIdx - 1);
+      renderTime(prevIdx * 250);
+    });
+
+    nextBtn.addEventListener('click', () => {
+      isPlaying = false;
+      playBtn.textContent = '▶ Play';
+      const curIdx = getFrameIndex(currentTime);
+      const nextIdx = Math.min(14, curIdx + 1);
+      renderTime(nextIdx * 250);
+    });
+
+    // Speed Controls
+    speedBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        speedBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        playbackRate = parseFloat(btn.dataset.speed);
+      });
+    });
+
+    // Start Loop
+    renderTime(0);
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

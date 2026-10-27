@@ -164,8 +164,11 @@ class MainActivity : FragmentActivity() {
             PDFUtilityAppTheme(darkTheme = darkTheme, dynamicColor = false) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background,
+                    color = MaterialTheme.colorScheme.background
                 ) {
+                    val isAuthNeeded = authState is com.swiftapp.data.model.AuthState.Unauthenticated
+                    val isLocked = !isSessionUnlocked && lockType != AppLockType.NONE
+
                     Crossfade(
                         targetState = showSplashScreen,
                         animationSpec = tween(350),
@@ -178,8 +181,6 @@ class MainActivity : FragmentActivity() {
                                 }
                             )
                         } else {
-                            val isAuthNeeded = authState is com.swiftapp.data.model.AuthState.Unauthenticated
-
                             Crossfade(
                                 targetState = isAuthNeeded,
                                 animationSpec = tween(300),
@@ -193,8 +194,6 @@ class MainActivity : FragmentActivity() {
                                         onContinueAsGuest = {}
                                     )
                                 } else {
-                                    val isLocked = !isSessionUnlocked && lockType != AppLockType.NONE
-
                                     Crossfade(
                                         targetState = isLocked,
                                         animationSpec = tween(250),
@@ -220,8 +219,6 @@ class MainActivity : FragmentActivity() {
                         }
                     }
 
-                    val isAuthNeeded = authState is com.swiftapp.data.model.AuthState.Unauthenticated
-                    val isLocked = !isSessionUnlocked && lockType != AppLockType.NONE
                     val isReadyForHomePermissions = !showSplashScreen && !isAuthNeeded && !isLocked
 
                     // Pehle Notification, phir Storage/File Access

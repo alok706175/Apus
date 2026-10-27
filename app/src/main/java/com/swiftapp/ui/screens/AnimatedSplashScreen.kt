@@ -1,113 +1,111 @@
 package com.swiftapp.ui.screens
 
-import androidx.compose.animation.core.*
+import android.app.Activity
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.core.view.WindowCompat
 import com.swiftapp.R
+import kotlinx.coroutines.delay
 
 /**
- * Clean Logo Splash Screen:
- * - Pure White Background
- * - Centered Swift App Logo with subtle elevation
- * - "Swift" title text below the logo
- * - Smooth fade-in entrance and seamless transition into homescreen
+ * Animated Splash Screen directly rendering the exact 15 user-uploaded frames:
+ * - Frame 1: 0.00s (Blank white screen)
+ * - Frame 2: 0.25s
+ * - Frame 3: 0.50s
+ * - Frame 4: 0.75s
+ * - Frame 5: 1.00s
+ * - Frame 6: 1.25s
+ * - Frame 7: 1.50s
+ * - Frame 8: 1.75s
+ * - Frame 9: 2.00s (Full orange bird)
+ * - Frame 10: 2.25s (Squircle fades in)
+ * - Frame 11: 2.50s (Squircle ~97% opacity)
+ * - Frame 12: 2.75s (Squircle 100% with white bird)
+ * - Frame 13: 3.00s (Hold)
+ * - Frame 14: 3.25s (Hold)
+ * - Frame 15: 3.50s (Hold final state, then navigate to main app)
  */
 @Composable
 fun AnimatedSplashScreen(
     onSplashFinished: () -> Unit
 ) {
-    val animAlpha = remember { Animatable(0f) }
-    val animScale = remember { Animatable(0.92f) }
+    val view = LocalView.current
+    DisposableEffect(Unit) {
+        val window = (view.context as? Activity)?.window
+        window?.let {
+            val insetsController = WindowCompat.getInsetsController(it, view)
+            insetsController.isAppearanceLightStatusBars = true
+            insetsController.isAppearanceLightNavigationBars = true
+        }
+        onDispose {}
+    }
 
-    LaunchedEffect(Unit) {
-        animScale.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(
-                durationMillis = 400,
-                easing = FastOutSlowInEasing
-            )
+    val frameResources = remember {
+        intArrayOf(
+            R.drawable.splash_frame_1,
+            R.drawable.splash_frame_2,
+            R.drawable.splash_frame_3,
+            R.drawable.splash_frame_4,
+            R.drawable.splash_frame_5,
+            R.drawable.splash_frame_6,
+            R.drawable.splash_frame_7,
+            R.drawable.splash_frame_8,
+            R.drawable.splash_frame_9,
+            R.drawable.splash_frame_10,
+            R.drawable.splash_frame_11,
+            R.drawable.splash_frame_12,
+            R.drawable.splash_frame_13,
+            R.drawable.splash_frame_14,
+            R.drawable.splash_frame_15
         )
     }
 
+    var currentFrameIndex by remember { mutableIntStateOf(0) }
+
     LaunchedEffect(Unit) {
-        animAlpha.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(
-                durationMillis = 350,
-                easing = FastOutSlowInEasing
-            )
-        )
-        kotlinx.coroutines.delay(950)
+        // Step through each of the exact 15 frames at 250ms intervals
+        for (i in frameResources.indices) {
+            currentFrameIndex = i
+            delay(250)
+        }
+        // Small delay to hold final frame before smooth crossfade to home screen
+        delay(200)
         onSplashFinished()
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
-            .graphicsLayer {
-                alpha = animAlpha.value
-            },
+            .background(Color.White),
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-            modifier = Modifier.graphicsLayer {
-                scaleX = animScale.value
-                scaleY = animScale.value
-            }
-        ) {
-            // App Icon
-            Box(
-                modifier = Modifier
-                    .size(130.dp)
-                    .shadow(
-                        elevation = 18.dp,
-                        shape = RoundedCornerShape(32.dp),
-                        spotColor = Color(0xFFFF5E38).copy(alpha = 0.35f),
-                        ambientColor = Color(0xFFFF5E38).copy(alpha = 0.15f)
-                    )
-                    .clip(RoundedCornerShape(32.dp))
-            ) {
-                Image(
-                    painter = painterResource(id = R.drawable.swift_icon_clean),
-                    contentDescription = "Swift Logo",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // App Name "Swift" below the logo
-            Text(
-                text = "Swift",
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 32.sp,
-                    letterSpacing = 0.5.sp,
-                    color = Color(0xFF1E293B)
-                )
-            )
-        }
+        Image(
+            painter = painterResource(id = frameResources[currentFrameIndex]),
+            contentDescription = "Splash Frame",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Fit
+        )
     }
+}
+
+@Preview(showBackground = true, widthDp = 1080, heightDp = 1920)
+@Composable
+fun SplashScreenPreview() {
+    AnimatedSplashScreen(onSplashFinished = {})
 }

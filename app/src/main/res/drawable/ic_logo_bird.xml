@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="256"
+    android:viewportHeight="256">
+
+    <!-- Top Wing Feather 1 -->
+    <path
+        android:fillColor="#FF5E3A"
+        android:pathData="M112,38 C132,25 158,20 180,18 C158,32 135,48 112,38 Z" />
+
+    <!-- Wing Feather 2 -->
+    <path
+        android:fillColor="#FF5E3A"
+        android:pathData="M98,55 C122,40 150,32 175,28 C150,42 124,60 98,55 Z" />
+
+    <!-- Wing Feather 3 -->
+    <path
+        android:fillColor="#FF5E3A"
+        android:pathData="M84,72 C110,55 142,42 170,35 C142,55 112,78 84,72 Z" />
+
+    <!-- Inner Wing Curve -->
+    <path
+        android:fillColor="#FF5E3A"
+        android:pathData="M108,88 C130,78 152,72 170,68 C148,78 128,90 108,88 Z" />
+
+    <!-- Main Body & Head / Beak (Pointing Right) -->
+    <path
+        android:fillColor="#FF5E3A"
+        android:pathData="M65,108 C90,92 130,88 185,98 C195,100 205,103 218,108 C205,106 195,102 182,100 C145,94 105,100 70,118 C60,123 50,128 38,135 C48,128 56,118 65,108 Z" />
+
+    <!-- Lower Tail Feathers (Pointing Left/Down) -->
+    <path
+        android:fillColor="#FF5E3A"
+        android:pathData="M72,120 C58,128 40,138 22,152 C42,144 58,132 72,120 Z" />
+    <path
+        android:fillColor="#FF5E3A"
+        android:pathData="M82,132 C68,140 50,152 32,168 C52,156 68,144 82,132 Z" />
+</vector>

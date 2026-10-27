@@ -149,10 +149,7 @@ fun MergePdfScreen(
         },
         bottomBar = {
             if (items.isNotEmpty()) {
-                MergeBottomActionBar(
-                    items = items,
-                    onMergeClick = { mergeViewModel.startMerge(context) },
-                )
+                // MergeBottomActionBar has been removed as per user request
             }
         },
     ) { paddingValues ->

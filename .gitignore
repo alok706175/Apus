@@ -12,3 +12,4 @@ captures/
 local.properties
 *.apk
 *.aab
+app/release/

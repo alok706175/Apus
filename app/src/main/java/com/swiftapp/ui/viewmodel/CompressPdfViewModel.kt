@@ -22,8 +22,11 @@ class CompressPdfViewModel : ViewModel() {
     private val _selectedPreset = MutableStateFlow(CompressionPreset.BALANCED)
     val selectedPreset: StateFlow<CompressionPreset> = _selectedPreset.asStateFlow()
 
-    private val _targetSizeKb = MutableStateFlow("200")
-    val targetSizeKb: StateFlow<String> = _targetSizeKb.asStateFlow()
+    private val _targetSizeValue = MutableStateFlow("")
+    val targetSizeValue: StateFlow<String> = _targetSizeValue.asStateFlow()
+
+    private val _targetSizeUnit = MutableStateFlow("KB") // "Bytes", "KB", "MB"
+    val targetSizeUnit: StateFlow<String> = _targetSizeUnit.asStateFlow()
 
     private val _uiState = MutableStateFlow<CompressUiState>(CompressUiState.Idle)
     val uiState: StateFlow<CompressUiState> = _uiState.asStateFlow()
@@ -59,8 +62,12 @@ class CompressPdfViewModel : ViewModel() {
         _selectedPreset.value = preset
     }
 
-    fun setTargetSizeKb(sizeText: String) {
-        _targetSizeKb.value = sizeText.filter { it.isDigit() }
+    fun setTargetSizeValue(sizeText: String) {
+        _targetSizeValue.value = sizeText.filter { it.isDigit() }
+    }
+
+    fun setTargetSizeUnit(unit: String) {
+        _targetSizeUnit.value = unit
     }
 
     fun unlockItem(context: Context, id: String, password: String) {
@@ -82,7 +89,14 @@ class CompressPdfViewModel : ViewModel() {
             _uiState.value = CompressUiState.Processing("Initializing compression engine...", 0.05f)
             val results = mutableListOf<CompressResult>()
             val preset = _selectedPreset.value
-            val targetKb = _targetSizeKb.value.toIntOrNull()
+            
+            // Calculate size in KB for backend processing
+            val rawValue = _targetSizeValue.value.toIntOrNull() ?: 200
+            val targetKb = when (_targetSizeUnit.value) {
+                "Bytes" -> rawValue / 1024
+                "MB" -> rawValue * 1024
+                else -> rawValue // KB
+            }
 
             for ((index, item) in validItems.withIndex()) {
                 val baseProgress = (index.toFloat() / validItems.size.toFloat())
