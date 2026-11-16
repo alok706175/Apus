@@ -22,5 +22,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "PDFUtilityApp"
+rootProject.name = "Apus"
 include(":app")

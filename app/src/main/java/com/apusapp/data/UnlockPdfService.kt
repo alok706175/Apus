@@ -1,0 +1,145 @@
+package com.apusapp.data
+
+import android.content.ContentValues
+import android.content.Context
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
+import com.apusapp.data.model.EncryptionStatus
+import com.apusapp.data.model.UnlockPdfItem
+import com.tom_roush.pdfbox.pdmodel.PDDocument
+import com.tom_roush.pdfbox.pdmodel.encryption.InvalidPasswordException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
+
+object UnlockPdfService {
+
+    /**
+     * Inspects a PDF document to determine its exact encryption status and metadata.
+     */
+    suspend fun inspectPdfFile(@Suppress("UNUSED_PARAMETER") context: Context, file: File, @Suppress("UNUSED_PARAMETER") uri: Uri? = null): UnlockPdfItem = withContext(Dispatchers.IO) {
+        var status: EncryptionStatus
+        var pageCount = 0
+
+        try {
+            PDDocument.load(file).use { doc ->
+                status = if (doc.isEncrypted) {
+                    // Document is encrypted with owner restrictions only (opens with blank password)
+                    EncryptionStatus.RESTRICTIONS_ONLY
+                } else {
+                    EncryptionStatus.NOT_ENCRYPTED
+                }
+                pageCount = doc.numberOfPages
+            }
+        } catch (e: InvalidPasswordException) {
+            status = EncryptionStatus.PASSWORD_PROTECTED
+        } catch (e: Exception) {
+            if (e.message?.contains("password", ignoreCase = true) == true ||
+                e.message?.contains("encrypted", ignoreCase = true) == true
+            ) {
+                status = EncryptionStatus.PASSWORD_PROTECTED
+            } else {
+                status = EncryptionStatus.NOT_ENCRYPTED
+            }
+        }
+
+        UnlockPdfItem(
+            file = file,
+            name = file.name,
+            size = file.length(),
+            pageCount = pageCount,
+            encryptionStatus = status,
+            uri = uri
+        )
+    }
+
+    /**
+     * Decrypts the PDF with the provided password and completely strips all security restrictions.
+     */
+    suspend fun unlockAndStripSecurity(
+        context: Context,
+        sourcePdf: File,
+        password: String?,
+        onProgress: (Float) -> Unit
+    ): Result<File> = withContext(Dispatchers.IO) {
+        var document: PDDocument? = null
+        try {
+            onProgress(0.2f)
+
+            // Attempt opening with provided password or blank password
+            document = if (!password.isNullOrBlank()) {
+                PDDocument.load(sourcePdf, password.trim())
+            } else {
+                PDDocument.load(sourcePdf)
+            }
+
+            onProgress(0.5f)
+
+            // Completely remove all security dictionaries and permission restrictions
+            document.setAllSecurityToBeRemoved(true)
+
+            onProgress(0.8f)
+
+            // Save clean, permanently unlocked output file
+            val outputDir = File(context.cacheDir, "unlocked_pdfs").apply { if (!exists()) mkdirs() }
+            val baseName = sourcePdf.nameWithoutExtension.removeSuffix("_protected")
+            val outFileName = "${baseName}_unlocked.pdf"
+            val tempOutputFile = File(outputDir, outFileName)
+
+            FileOutputStream(tempOutputFile).use { fos ->
+                document.save(fos)
+            }
+
+            val savedFile = com.apusapp.utils.StorageLocationManager.savePdfToStorage(context, tempOutputFile, outFileName)
+            try { tempOutputFile.delete() } catch (_: Exception) {}
+
+            onProgress(1.0f)
+            Result.success(savedFile)
+        } catch (e: InvalidPasswordException) {
+            Result.failure(IllegalArgumentException("Incorrect password. Please verify and try again."))
+        } catch (e: Exception) {
+            if (e.message?.contains("password", ignoreCase = true) == true) {
+                Result.failure(IllegalArgumentException("Incorrect password. Please verify and try again."))
+            } else {
+                e.printStackTrace()
+                Result.failure(e)
+            }
+        } finally {
+            try {
+                document?.close()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    /**
+     * Saves the unlocked PDF file to public Downloads folder.
+     */
+    suspend fun savePdfToDownloads(context: Context, file: File): Result<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            val fileName = file.name
+            val savedFile = com.apusapp.utils.StorageLocationManager.savePdfToStorage(context, file, fileName)
+            "Saved to ${savedFile.absolutePath}"
+        }
+    }
+
+    /**
+     * Copy selected Uri to local cache file.
+     */
+    suspend fun copyUriToCacheFile(context: Context, uri: Uri): File? = withContext(Dispatchers.IO) {
+        runCatching {
+            val fileName = "unlock_raw_${System.currentTimeMillis()}.pdf"
+            val tempFile = File(context.cacheDir, fileName)
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                FileOutputStream(tempFile).use { output ->
+                    input.copyTo(output)
+                }
+            }
+            tempFile
+        }.getOrNull()
+    }
+}
